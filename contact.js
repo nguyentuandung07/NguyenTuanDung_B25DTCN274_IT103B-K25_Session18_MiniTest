@@ -1,32 +1,35 @@
 let users = [];
+let nextId = 1;
+let editingId = null;
 
-let nextId = 2;
-users.length;
-
+const form = document.querySelector("#contact-form");
 const nameInput = document.querySelector("#contact-name");
 const phoneInput = document.querySelector("#contact-phone");
 const emailInput = document.querySelector("#contact-email");
-
 const submitButton = document.querySelector(".btn-add");
-
 const tbody = document.querySelector("#contact-tbody");
 
-const regexName = (name) => {
-  return /^[a-zA-Z\u00C0-\u1EF9\s]+$/.test(name);
-};
+const NAME_REGEX = /^[a-zA-Z\u00C0-\u1EF9\s]+$/;
+const PHONE_REGEX = /^(0|\+84)[0-9]{9,10}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const regexPhone = (number) => {
-  return /^(0?)(3[2-9]|5[6|8|9]|7[0|6-9]|8[0-6|8|9]|9[0-4|6-9])[0-9]{7}$/.test(
-    number,
-  );
-};
+function setFormMode(mode) {
+  if (mode === "edit") {
+    submitButton.textContent = "Cập nhật";
+    return;
+  }
+  submitButton.textContent = "Thêm";
+}
 
-const regexEmail = (email) => {
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
-};
+function resetForm() {
+  form.reset();
+  editingId = null;
+  setFormMode("add");
+  nameInput.focus();
+}
 
-const validate = (name, phone, email) => {
-  // validate Name
+function validateContact({ name, phone, email }, { excludeId = null } = {}) {
+  // Họ tên
   if (name === "") {
     alert("Họ tên không được để trống!");
     return false;
@@ -35,76 +38,96 @@ const validate = (name, phone, email) => {
     alert("Họ tên phải có ít nhất 2 ký tự!");
     return false;
   }
-  if (!regexName(name)) {
+  if (!NAME_REGEX.test(name)) {
     alert("Họ tên không được chứa số hoặc ký tự đặc biệt!");
     return false;
   }
-  // validate phone
+
+  // Số điện thoại
   if (phone === "") {
     alert("Số điện thoại không được để trống!");
     return false;
   }
-  if (!regexPhone(phone)) {
+  if (!PHONE_REGEX.test(phone)) {
     alert(
       "Số điện thoại không hợp lệ! Vui lòng nhập số điện thoại 10 chữ số (bắt đầu bằng 0) hoặc định dạng quốc tế (+84...)",
     );
     return false;
   }
-  // validate email
+
+  // Email
   if (email === "") {
     alert("Email không được để trống!");
     return false;
   }
-  if (regexEmail(email)) {
+  if (!EMAIL_REGEX.test(email)) {
     alert("Email không hợp lệ!");
     return false;
   }
-  if (!users.find((v) => v === email)) {
+  const isDuplicateEmail = users.some(
+    (u) => u.email.toLowerCase() === email.toLowerCase() && u.id !== excludeId,
+  );
+  if (isDuplicateEmail) {
     alert("Email đã tồn tại trong danh bạ!");
     return false;
   }
 
   return true;
-};
+}
 
-const renderUser = () => {
+function renderUsers() {
   tbody.innerHTML = "";
 
-  users.forEach((user) => tbody.appendChild(createUser(user)));
-};
+  if (users.length === 0) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    td.className = "empty-state";
+    td.innerHTML = "<p>Chưa có liên hệ nào.</p>";
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
 
-const createUser = (user) => {
+  users.forEach((user, index) => {
+    tbody.appendChild(createUserRow(user, index));
+  });
+}
+
+function createUserRow(user, index) {
   const tr = document.createElement("tr");
 
   const tdSTT = document.createElement("td");
-  tdSTT.textContent = user.id;
+  tdSTT.textContent = String(index + 1);
 
   const tdName = document.createElement("td");
   tdName.textContent = user.name;
 
   const tdPhone = document.createElement("td");
-  tdPhone.textContent = user.phoneNumber;
+  tdPhone.textContent = user.phone;
 
   const tdEmail = document.createElement("td");
-  tdEmail.textContent = user.emnail;
+  tdEmail.textContent = user.email;
 
   const tdAction = document.createElement("td");
+  const actionButtons = document.createElement("div");
+  actionButtons.className = "action-buttons";
 
-  const actionButton = document.createElement("div");
-  actionButton.className = "action-buttons";
+  const btnEdit = document.createElement("button");
+  btnEdit.type = "button";
+  btnEdit.className = "btn-edit";
+  btnEdit.textContent = "Sửa";
+  btnEdit.addEventListener("click", () => startEdit(user.id));
 
-  const actionButtonEdit = document.createElement("button");
-  actionButtonEdit.className = "btn-edit";
-  actionButtonEdit.textContent = "Sửa";
+  const btnDelete = document.createElement("button");
+  btnDelete.type = "button";
+  btnDelete.className = "btn-delete";
+  btnDelete.textContent = "Xóa";
+  btnDelete.addEventListener("click", () => deleteUser(user.id));
 
-  const actionButtonDelete = document.createElement("button");
-  actionButtonDelete.className = "btn-delete";
-  actionButtonDelete.textContent = "Xóa";
-
-  actionButton.appendChild(actionButtonEdit);
-  actionButton.appendChild(actionButtonDelete);
-
-  tdAction.appendChild(actionButton);
+  actionButtons.appendChild(btnEdit);
+  actionButtons.appendChild(btnDelete);
+  tdAction.appendChild(actionButtons);
 
   tr.appendChild(tdSTT);
   tr.appendChild(tdName);
@@ -113,43 +136,45 @@ const createUser = (user) => {
   tr.appendChild(tdAction);
 
   return tr;
-};
+}
 
-const addUser = () => {
+function addUser({ name, phone, email }) {
+  const newUser = {
+    id: nextId++,
+    name,
+    phone,
+    email,
+  };
+  users.push(newUser);
+}
+
+function handleSubmit(e) {
+  e.preventDefault();
+
   const name = nameInput.value.trim();
   const phone = phoneInput.value.trim();
   const email = emailInput.value.trim();
+  const contact = { name, phone, email };
 
-  if (validate(name, phone, email)) {
-    const newUser = {
-      id: nextId++,
-      name,
-      phone,
-      email,
-    };
-    users.push(newUser);
-
-    nameInput.value = "";
-    phoneInput.value = "";
-    emailInput.value = "";
-
-    renderUser();
+  if (editingId === null) {
+    if (!validateContact(contact)) return;
+    addUser(contact);
+    resetForm();
+    alert("Thêm liên hệ thành công!");
+    renderUsers();
+    return;
   }
-};
 
-const main = () => {
-  renderUser();
+  if (!validateContact(contact, { excludeId: editingId })) return;
+  updateUser(editingId, contact);
+  resetForm();
+  renderUsers();
+}
 
-  submitButton.addEventListener("click", addUser);
-  nameInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") addTask();
-  });
-  phoneInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") addTask();
-  });
-  emailInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") addTask();
-  });
-};
+function main() {
+  setFormMode("add");
+  renderUsers();
+  form.addEventListener("submit", handleSubmit);
+}
 
 main();
