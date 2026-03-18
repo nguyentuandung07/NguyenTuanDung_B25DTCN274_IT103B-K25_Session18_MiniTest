@@ -1,5 +1,12 @@
-let users = [];
-let nextId = 1;
+let users = [
+  {
+    id: 1,
+    name: "nva",
+    phone: "0123456789",
+    email: "nva@gmail.com",
+  },
+];
+let nextId = 2;
 let editingId = null;
 
 const form = document.querySelector("#contact-form");
@@ -13,22 +20,22 @@ const NAME_REGEX = /^[a-zA-Z\u00C0-\u1EF9\s]+$/;
 const PHONE_REGEX = /^(0|\+84)[0-9]{9,10}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function setFormMode(mode) {
+const setFormMode = (mode) => {
   if (mode === "edit") {
     submitButton.textContent = "Cập nhật";
     return;
   }
   submitButton.textContent = "Thêm";
-}
+};
 
-function resetForm() {
+const resetForm = () => {
   form.reset();
   editingId = null;
   setFormMode("add");
   nameInput.focus();
-}
+};
 
-function validateContact({ name, phone, email }, { excludeId = null } = {}) {
+const validateContact = ({ name, phone, email }, { excludeId = null } = {}) => {
   // Họ tên
   if (name === "") {
     alert("Họ tên không được để trống!");
@@ -73,9 +80,9 @@ function validateContact({ name, phone, email }, { excludeId = null } = {}) {
   }
 
   return true;
-}
+};
 
-function renderUsers() {
+const renderUsers = () => {
   tbody.innerHTML = "";
 
   if (users.length === 0) {
@@ -92,9 +99,9 @@ function renderUsers() {
   users.forEach((user, index) => {
     tbody.appendChild(createUserRow(user, index));
   });
-}
+};
 
-function createUserRow(user, index) {
+const createUserRow = (user, index) => {
   const tr = document.createElement("tr");
 
   const tdSTT = document.createElement("td");
@@ -117,7 +124,7 @@ function createUserRow(user, index) {
   btnEdit.type = "button";
   btnEdit.className = "btn-edit";
   btnEdit.textContent = "Sửa";
-  btnEdit.addEventListener("click", () => startEdit(user.id));
+  btnEdit.addEventListener("click", () => editUser(user.id));
 
   const btnDelete = document.createElement("button");
   btnDelete.type = "button";
@@ -136,9 +143,9 @@ function createUserRow(user, index) {
   tr.appendChild(tdAction);
 
   return tr;
-}
+};
 
-function addUser({ name, phone, email }) {
+const addUser = ({ name, phone, email }) => {
   const newUser = {
     id: nextId++,
     name,
@@ -146,9 +153,31 @@ function addUser({ name, phone, email }) {
     email,
   };
   users.push(newUser);
-}
+};
 
-function handleSubmit(e) {
+const editUser = (id) => {
+  setFormMode("edit");
+  const findUser = users.find((user) => user.id === id);
+  editingId = id;
+  nameInput.value = findUser.name;
+  phoneInput.value = findUser.phone;
+  emailInput.value = findUser.email;
+};
+
+const updateUser = (id, userObj) => {
+  const findUser = users.findIndex((user) => user.id === id);
+  users[findUser] = userObj;
+};
+
+const deleteUser = (id) => {
+  const confirmDelete = confirm("Bạn có chắc chắn muốn xóa liên hệ này?");
+  if (confirmDelete) {
+    users = users.filter((user) => user.id !== id);
+  }
+  renderUsers();
+};
+
+const handleSubmit = (e) => {
   e.preventDefault();
 
   const name = nameInput.value.trim();
@@ -160,7 +189,6 @@ function handleSubmit(e) {
     if (!validateContact(contact)) return;
     addUser(contact);
     resetForm();
-    alert("Thêm liên hệ thành công!");
     renderUsers();
     return;
   }
@@ -169,12 +197,12 @@ function handleSubmit(e) {
   updateUser(editingId, contact);
   resetForm();
   renderUsers();
-}
+};
 
-function main() {
+const main = () => {
   setFormMode("add");
   renderUsers();
   form.addEventListener("submit", handleSubmit);
-}
+};
 
 main();
